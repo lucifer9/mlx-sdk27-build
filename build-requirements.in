@@ -1,0 +1,4 @@
+build
+setuptools>=80
+cmake>=3.25
+typing_extensions

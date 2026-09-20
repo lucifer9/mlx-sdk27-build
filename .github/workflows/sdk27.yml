@@ -1,0 +1,83 @@
+name: SDK27 build experiment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk27-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Standard ARM64 preview runner; never substitute a paid larger runner.
+    runs-on: xcode-27
+    timeout-minutes: 180
+    env:
+      MLX_SOURCE_SHA: 59d600b5e64c238427d0f8d897ab7c682ef4d3d2
+      DEVELOPER_DIR: /Applications/Xcode_27_Release_Candidate.app/Contents/Developer
+      EXPECTED_XCODE_BUILD: 27A266a
+      MACOSX_DEPLOYMENT_TARGET: '26.2'
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+      CMAKE_ARGS: >-
+        -DMLX_BUILD_METAL=ON -DMLX_METAL_JIT=OFF
+        -DCMAKE_OSX_DEPLOYMENT_TARGET=26.2 -DCMAKE_OSX_ARCHITECTURES=arm64
+      ARCHFLAGS: '-arch arm64'
+    steps:
+      - name: Checkout experiment
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Checkout pinned MLX
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ml-explore/mlx
+          ref: 59d600b5e64c238427d0f8d897ab7c682ef4d3d2
+          path: source
+          persist-credentials: false
+      - name: Set up isolated Python build tools
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        with:
+          version: '0.12.16'
+          python-version: '3.12.14'
+          enable-cache: false
+      - name: Verify SDK27 toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence wheelhouse
+          bash scripts/toolchain.sh 2>&1 | tee evidence/toolchain.log
+      - name: Compile original and patched GDN translation unit
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/probe.sh 2>&1 | tee evidence/probe.log
+      - name: Build matching frontend and Metal backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build.sh 2>&1 | tee evidence/build.log
+      - name: Validate wheel contents and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --no-project --python .build-venv/bin/python scripts/verify.py
+      - name: Upload diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk27-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/
+          retention-days: 1
+          if-no-files-found: warn
+      - name: Upload validated wheel pair
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk27-wheels-${{ github.run_id }}-${{ github.run_attempt }}
+          path: wheelhouse/
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
