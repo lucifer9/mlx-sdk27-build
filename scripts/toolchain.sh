@@ -6,10 +6,19 @@ set -euo pipefail
 xcodebuild -version
 [[ "$(xcodebuild -version | awk '/Build version/{print $3}')" == "$EXPECTED_XCODE_BUILD" ]]
 [[ "$(xcrun --sdk macosx --show-sdk-version)" == 27.0 ]]
-if ! xcrun --sdk macosx --find metal; then
+# Xcode ships a metal shim even when the downloadable component is absent.
+if xcrun --sdk macosx metal --version > evidence/metal-before.log 2>&1; then
+  cat evidence/metal-before.log
+elif grep -q 'missing Metal Toolchain' evidence/metal-before.log; then
+  cat evidence/metal-before.log
   echo 'Metal Toolchain missing; downloading the official Xcode component.'
   xcodebuild -downloadComponent MetalToolchain
+else
+  cat evidence/metal-before.log
+  echo 'Unexpected Metal compiler failure; refusing an unrelated retry.' >&2
+  exit 1
 fi
+xcrun --sdk macosx --find metal
 xcrun --sdk macosx metal --version
 xcrun --sdk macosx --show-sdk-path
 xcrun clang --version
