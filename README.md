@@ -1,6 +1,6 @@
 # MLX SDK 27 构建实验
 
-在公开仓库的标准 `xcode-27` ARM64 runner 上，用 Xcode 27 / SDK 27 构建 MLX，再下载到 M5 Pro 本机验证。仅手动触发，不使用收费 larger runner，不发布 PyPI，不包含模型、凭据或本机数据。
+在公开仓库的标准 `xcode-27` ARM64 runner 上，用 Xcode 27 / SDK 27 构建 MLX，再下载到 M5 Pro 本机验证。支持手动触发；仅 `main` 上构建 workflow 文件的更新会自动触发，用于初始化和验证 workflow。不使用收费 larger runner，不发布 PyPI，不包含模型、凭据或本机数据。
 
 ## 固定输入
 

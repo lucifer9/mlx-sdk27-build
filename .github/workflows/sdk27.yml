@@ -2,6 +2,9 @@ name: SDK27 build experiment
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/sdk27.yml]
 
 permissions:
   contents: read
